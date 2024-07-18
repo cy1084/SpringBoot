@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- 게시글 리스트 -->
+<mapper namespace="com.min.edu.model.mapper.BoardDaoImpl">
+
+<select id="userBoardList" resultType="BoardVo">
+	SELECT SEQ, ID, TITLE,
+	CONTENT, "DEPTH", "REF",
+	STEP, DELFLAG, CREATEAT
+	FROM ANSWERBOARD
+	WHERE DELFLAG ='N'
+	ORDER BY CREATEAT DESC
+</select>
+
+<!-- 게시글 삭제하기 -->
+<update id="delflagBoard" parameterType="java.util.Map">
+	UPDATE ANSWERBOARD SET DELFLAG ='Y'
+	WHERE DELFLAG ='N'
+	AND SEQ IN
+	<foreach collection="seqs" item="seq" open="(" separator=","
+		close=")">
+		#{seq}
+	</foreach>
+</update>
+
+<!-- 게시글 작성 -->
+<insert id="writeBoard" parameterType="BoardVo">
+	<selectKey keyProperty="seq" resultType="java.lang.Integer"
+		order="BEFORE">
+		SELECT ANSWERBOARD_SEQ.NEXTVAL AS SEQ FROM DUAL
+	</selectKey>
+
+	INSERT INTO ANSWERBOARD (SEQ, ID, TITLE,
+	CONTENT, "DEPTH", "REF",
+	STEP, DELFLAG, CREATEAT)
+	VALUES(#{seq}, #{id}, #{title},
+	#{content}, 0,(SELECT MAX(REF)+1 FROM ANSWERBOARD a),
+	0, 'N',CURRENT_DATE)
+</insert>
+
+<!-- 게시글 상세보기 -->
+<select id="getOneBoard" parameterType="java.lang.String"
+	resultType="BoardVo">
+	SELECT SEQ, ID, TITLE,
+	CONTENT, "DEPTH", "REF",
+	STEP, DELFLAG, TO_CHAR(CREATEAT,'YYYY/MM/DD HH:mi:ss') AS CREATEAT
+	FROM ANSWERBOARD a
+	WHERE SEQ = #{seq}
+</select>
+
+<!-- 답글 업데이트 -->
+<update id="replyUpdate" parameterType="BoardVo">
+UPDATE ANSWERBOARD SET STEP = STEP+1
+	WHERE "REF" =(SELECT REF FROM ANSWERBOARD a WHERE SEQ=#{seq})
+	AND STEP > (SELECT STEP FROM ANSWERBOARD a2 WHERE SEQ=#{seq})
+</update>
+
+
+<!-- 답글 입력 -->
+<insert id="replyInsert" parameterType="BoardVo">
+	INSERT INTO ANSWERBOARD (SEQ, ID, TITLE, 
+	  		 CONTENT, "DEPTH", "REF", 
+	  		 STEP, CREATEAT)
+		VALUES(ANSWERBOARD_SEQ.NEXTVAL, #{id}, #{title},
+				#{content}, 
+				(SELECT "DEPTH" +1 FROM ANSWERBOARD  WHERE SEQ=#{seq}), 
+				(SELECT REF FROM ANSWERBOARD WHERE SEQ=#{seq}),
+				(SELECT STEP +1 FROM ANSWERBOARD a WHERE SEQ=#{seq}), 
+				CURRENT_DATE)
+</insert>
+
+<!-- 삭제된 게시글 조회 -->
+<select id="restoreBoard" resultType="BoardVo">
+	SELECT SEQ, ID, TITLE,
+	"DEPTH", "REF",
+	STEP, DELFLAG, CREATEAT
+	FROM ANSWERBOARD
+	WHERE DELFLAG ='Y'
+</select>
+<!-- 게시글 복구 -->
+<update id="restoreDelflag" parameterType="java.lang.String">
+	UPDATE ANSWERBOARD
+	SET DELFLAG ='N'
+	WHERE DELFLAG ='Y'
+	AND SEQ IN (#{seq})
+</update>
+
+
+
+</mapper>
